@@ -52,10 +52,16 @@ export const Landing3D: React.FC<Landing3DProps> = ({ onNavigate }) => {
     router.push('/');
   };
 
+  const handleBackgroundWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    if (!containerRef.current) return;
+    event.preventDefault();
+    containerRef.current.scrollBy({ top: event.deltaY, behavior: 'auto' });
+  };
+
   return (
     <div ref={containerRef} className="relative h-screen overflow-y-auto bg-slate-950">
       <div className="fixed inset-0 z-0 bg-slate-900" />
-      <div className="fixed inset-0 z-[1] pointer-events-none overflow-hidden">
+      <div className="fixed inset-0 z-[1] overflow-hidden" onWheel={handleBackgroundWheel}>
         <Boxes className="absolute inset-0" />
       </div>
       <div className="fixed inset-0 z-[2] pointer-events-none bg-slate-900 [mask-image:radial-gradient(transparent,white)]" />
