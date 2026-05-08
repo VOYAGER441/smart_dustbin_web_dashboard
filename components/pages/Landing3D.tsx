@@ -33,7 +33,7 @@ export const Landing3D: React.FC<Landing3DProps> = ({ onNavigate }) => {
     },
   ];
 
-  const navigate = (page: 'landing' | 'login' | 'overview') => {
+  const navigate = (page: 'landing' | 'login' | 'loginForCollector' | 'overview') => {
     if (onNavigate) {
       onNavigate(page);
       return;
@@ -41,6 +41,11 @@ export const Landing3D: React.FC<Landing3DProps> = ({ onNavigate }) => {
 
     if (page === 'login') {
       router.push('/login');
+      return;
+    }
+
+    if (page === 'loginForCollector') {
+      router.push('/loginForCollector');
       return;
     }
 
@@ -119,11 +124,19 @@ export const Landing3D: React.FC<Landing3DProps> = ({ onNavigate }) => {
               onClick={() => navigate('login')}
               className="group relative inline-flex items-center gap-3 px-8 py-4 rounded-full bg-gradient-to-r from-cyan-500 to-sky-500 text-white font-semibold overflow-hidden hover:shadow-lg hover:shadow-cyan-500/50 transition-all"
             >
-              <span className="relative z-10">Get Started</span>
+              <span className="relative z-10">For Administration</span>
+              <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" />
+            </button>
+            
+            <button
+              onClick={() => navigate('loginForCollector')}
+              className="group relative inline-flex items-center gap-3 px-8 py-4 rounded-full bg-gradient-to-r from-cyan-500 to-sky-500 text-white font-semibold overflow-hidden hover:shadow-lg hover:shadow-cyan-500/50 transition-all"
+            >
+              <span className="relative z-10">For Garbage Collector</span>
               <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" />
             </button>
 
-            <button
+            {/* <button
                 onClick={() => {
                   if (!containerRef.current) return;
                   containerRef.current.scrollTo({ top: containerRef.current.clientHeight, behavior: 'smooth' });
@@ -131,7 +144,7 @@ export const Landing3D: React.FC<Landing3DProps> = ({ onNavigate }) => {
               className="px-8 py-4 rounded-full border-2 border-cyan-400/50 text-cyan-400 font-semibold hover:bg-cyan-400/10 transition-colors"
             >
               Explore Features
-            </button>
+            </button> */}
           </motion.div>
 
           <div className="mx-auto grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl">

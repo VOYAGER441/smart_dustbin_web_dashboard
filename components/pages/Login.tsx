@@ -8,9 +8,10 @@ import { Mail, Lock, Leaf, Eye, EyeOff } from 'lucide-react';
 
 interface LoginProps {
   onNavigate?: (page: string) => void;
+  dashboardPath?: string;
 }
 
-export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
+export const Login: React.FC<LoginProps> = ({ onNavigate, dashboardPath = '/dashboard' }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -23,7 +24,7 @@ export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
       return;
     }
 
-    router.push(page === 'overview' ? '/dashboard' : '/');
+    router.push(page === 'overview' ? dashboardPath : '/');
   };
 
   const handleLogin = async (e: React.FormEvent) => {

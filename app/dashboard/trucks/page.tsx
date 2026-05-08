@@ -1,10 +1,5 @@
-import DashboardPlaceholder from "@/components/pages/DashboardPlaceholder";
+import Trucks from "@/components/pages/Trucks";
 
 export default function TrucksPage() {
-  return (
-    <DashboardPlaceholder
-      title="Trucks"
-      description="Track vehicle assignment, route status, and pickup coverage from this page."
-    />
-  );
+  return <Trucks />;
 }

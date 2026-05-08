@@ -2,7 +2,7 @@
 
 import { ReactNode, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, X, Search, BarChart3, Trash2, Truck, Recycle, Settings, FileText, MessageSquare, Bell } from "lucide-react";
+import { Menu, X, Search, BarChart3, Trash2, Truck, MessageSquare, Bell } from "lucide-react";
 
 interface DashboardShellProps {
   children: ReactNode;
@@ -12,9 +12,9 @@ const menuItems = [
   { href: "/dashboard", label: "Overview", icon: BarChart3 },
   { href: "/dashboard/bin-status", label: "Bin status", icon: Trash2 },
   { href: "/dashboard/trucks", label: "Trucks", icon: Truck },
-  { href: "/dashboard/recycle", label: "Recycle house", icon: Recycle },
-  { href: "/dashboard/iot", label: "IoT device manager", icon: Settings },
-  { href: "/dashboard/report", label: "Report", icon: FileText },
+  // { href: "/dashboard/recycle", label: "Recycle house", icon: Recycle },
+  // { href: "/dashboard/iot", label: "IoT device manager", icon: Settings },
+  // { href: "/dashboard/report", label: "Report", icon: FileText },
 ] as const;
 
 export default function DashboardShell({ children }: DashboardShellProps) {
@@ -96,3 +96,6 @@ export default function DashboardShell({ children }: DashboardShellProps) {
     </div>
   );
 }
+
+
+// copilot --resume="Start Chat Session"

@@ -1,76 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Search, ChevronDown, Wifi, Trash2, Lock } from "lucide-react";
-
-interface BinData {
-  id: string;
-  address: string;
-  status: "Filled" | "Almost filled" | "Emptied";
-  weight: string;
-  truck: string;
-}
+import { BinData, binData, getStatusColor } from "./data/binStatusData";
 
 type SortOption = "Status" | "Location" | "Weight";
 type StatusFilter = "All" | BinData["status"];
-
-const binData: BinData[] = [
-  {
-    id: "BIN-001",
-    address: "2464 Royal Ln. Mesa, New Jersey 45463",
-    status: "Filled",
-    weight: "12 ton",
-    truck: "RES-12 • TAX-1234",
-  },
-  {
-    id: "BIN-002",
-    address: "3891 Ranchview Dr. Richardson, California 6...",
-    status: "Filled",
-    weight: "TBD",
-    truck: "RES-Ab • OMO-2234",
-  },
-  {
-    id: "BIN-003",
-    address: "2972 Westheimer Rd. Santa Ana, Illinois 854...",
-    status: "Filled",
-    weight: "12 ton",
-    truck: "RES-32 • TAX-3455",
-  },
-  {
-    id: "BIN-004",
-    address: "3891 Ranchview Dr. Richardson, California 6...",
-    status: "Almost filled",
-    weight: "12 ton",
-    truck: "RES-62 • VDS-1345",
-  },
-  {
-    id: "BIN-005",
-    address: "1901 Thornridge Cir. Shiloh, Hawaii 81063",
-    status: "Almost filled",
-    weight: "12 ton",
-    truck: "RES-91 • KKQ-5432",
-  },
-  {
-    id: "BIN-006",
-    address: "3517 W. Gray St. Utica, Pennsylvania 57867",
-    status: "Emptied",
-    weight: "12 ton",
-    truck: "RES-32 • TAX-3455",
-  },
-];
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "Filled":
-      return "bg-red-500";
-    case "Almost filled":
-      return "bg-yellow-500";
-    case "Emptied":
-      return "bg-green-500";
-    default:
-      return "bg-gray-500";
-  }
-};
 
 export default function BinStatus() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -206,6 +142,7 @@ export default function BinStatus() {
               <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">IoT Report</th>
               <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Est. Weight</th>
               <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Truck Assigned</th>
+              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800">
@@ -220,6 +157,14 @@ export default function BinStatus() {
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-300">{item.weight}</td>
                 <td className="px-6 py-4 text-sm text-gray-300">{item.truck}</td>
+                <td className="px-6 py-4 text-sm text-gray-300">
+                  <Link
+                    href={`/dashboard/bin-status/${encodeURIComponent(item.id)}`}
+                    className="inline-flex items-center rounded-md border border-cyan-500/40 px-3 py-1.5 text-cyan-300 hover:bg-cyan-500/10 transition-colors"
+                  >
+                    Open
+                  </Link>
+                </td>
               </tr>
             ))}
           </tbody>
