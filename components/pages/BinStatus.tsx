@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, ChevronDown, Wifi, Trash2, Lock, MapPin, Camera, AlertTriangle } from "lucide-react";
+import { Search, ChevronDown, Trash2, Lock, MapPin, Camera, AlertTriangle, Radio } from "lucide-react";
 import { BinData, binData, getStatusColor } from "./data/binStatusData";
 import Map from "@/components/ui/Map";
+import { formatRelative, useLiveBin } from "@/lib/binLive";
 
 type SortOption = "Status" | "Location" | "Weight";
 type StatusFilter = "All" | BinData["status"];
@@ -14,7 +15,28 @@ export default function BinStatus() {
   const [sortBy, setSortBy] = useState<SortOption>("Status");
   const [show, setShow] = useState<StatusFilter>("All");
 
-  const filteredData = binData
+  const { telemetry, derived, now } = useLiveBin();
+
+  const mergedData = useMemo(() => {
+    return binData.map((bin) => {
+      if (!bin.isLive || !telemetry || !derived) return bin;
+      return {
+        ...bin,
+        status: derived.status,
+        fillLevel: derived.fillLevel,
+        lastVerified: formatRelative(derived.receivedAt, now),
+        condition: derived.online
+          ? derived.fillLevel >= 90
+            ? "Critical"
+            : derived.fillLevel >= 60
+            ? "Attention"
+            : "Healthy"
+          : "Attention",
+      } satisfies BinData;
+    });
+  }, [telemetry, derived, now]);
+
+  const filteredData = mergedData
     .filter((item) => item.address.toLowerCase().includes(searchTerm.toLowerCase()))
     .filter((item) => show === "All" || item.status === show);
 
@@ -35,11 +57,12 @@ export default function BinStatus() {
     }
   });
 
-  const pendingVerifications = binData.filter(
+  const pendingVerifications = mergedData.filter(
     (item) => item.imageStatus.camera === "Pending" || item.imageStatus.citizen === "Pending"
   ).length;
 
-  const healthAlerts = binData.filter((item) => item.condition !== "Healthy").length;
+  const healthAlerts = mergedData.filter((item) => item.condition !== "Healthy").length;
+  const liveOnline = derived?.online ?? false;
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
@@ -55,7 +78,7 @@ export default function BinStatus() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="rounded-3xl border border-gray-800 bg-gray-900/80 p-5">
             <p className="text-sm text-gray-400 uppercase tracking-[0.24em]">Active bins</p>
-            <p className="mt-3 text-3xl font-semibold text-white">{binData.length}</p>
+            <p className="mt-3 text-3xl font-semibold text-white">{mergedData.length}</p>
           </div>
           <div className="rounded-3xl border border-gray-800 bg-gray-900/80 p-5">
             <p className="text-sm text-gray-400 uppercase tracking-[0.24em]">Pending verify</p>
@@ -81,8 +104,8 @@ export default function BinStatus() {
               </div>
             </div>
 
-            <div className="mt-6 rounded-3xl overflow-hidden border border-gray-800">
-              <Map />
+            <div className="mt-6">
+              <Map height={420} />
             </div>
           </div>
 
@@ -98,11 +121,12 @@ export default function BinStatus() {
             </div>
 
             <div className="mt-6 overflow-x-auto">
-              <table className="w-full min-w-[680px] text-left text-sm">
+              <table className="w-full min-w-[720px] text-left text-sm">
                 <thead className="bg-gray-800 border-b border-gray-700">
                   <tr>
                     <th className="px-6 py-4 text-gray-400 font-medium">Province / Area</th>
                     <th className="px-6 py-4 text-gray-400 font-medium">Status</th>
+                    <th className="px-6 py-4 text-gray-400 font-medium">Fill</th>
                     <th className="px-6 py-4 text-gray-400 font-medium">Weight</th>
                     <th className="px-6 py-4 text-gray-400 font-medium">Truck</th>
                     <th className="px-6 py-4 text-gray-400 font-medium">Action</th>
@@ -111,11 +135,44 @@ export default function BinStatus() {
                 <tbody className="divide-y divide-gray-800">
                   {sortedData.map((item) => (
                     <tr key={item.id} className="hover:bg-gray-800 transition-colors">
-                      <td className="px-6 py-4 text-gray-300">{item.address}</td>
+                      <td className="px-6 py-4 text-gray-300">
+                        <div className="flex items-center gap-2">
+                          <span>{item.address}</span>
+                          {item.isLive && (
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                                liveOnline
+                                  ? "bg-emerald-500/15 text-emerald-300"
+                                  : "bg-yellow-500/15 text-yellow-300"
+                              }`}
+                            >
+                              <Radio className="w-3 h-3" />
+                              {liveOnline ? "Live" : "Stale"}
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-6 py-4 text-gray-300">
                         <div className="flex items-center gap-2">
                           <div className={`h-3 w-3 rounded-full ${getStatusColor(item.status)}`} />
                           <span>{item.status}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-gray-300">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-20 overflow-hidden rounded-full bg-gray-950">
+                            <div
+                              className={`h-full ${
+                                item.fillLevel >= 90
+                                  ? "bg-red-500"
+                                  : item.fillLevel >= 60
+                                  ? "bg-yellow-400"
+                                  : "bg-emerald-500"
+                              }`}
+                              style={{ width: `${item.fillLevel}%` }}
+                            />
+                          </div>
+                          <span className="text-xs">{item.fillLevel}%</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-gray-300">{item.weight}</td>
@@ -137,6 +194,52 @@ export default function BinStatus() {
         </div>
 
         <aside className="space-y-6">
+          <div className="rounded-3xl border border-cyan-500/30 bg-gradient-to-br from-cyan-500/10 to-gray-900/80 p-6">
+            <div className="flex items-center gap-3 text-white">
+              <Radio className={`w-5 h-5 ${liveOnline ? "text-emerald-300" : "text-yellow-300"}`} />
+              <div>
+                <p className="text-sm uppercase tracking-[0.24em] text-gray-400">Live telemetry</p>
+                <p className="mt-2 text-xl font-semibold">BIN-001</p>
+              </div>
+            </div>
+            {derived ? (
+              <div className="mt-4 space-y-3 text-sm">
+                <div className="rounded-2xl bg-gray-950/70 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">Status</span>
+                    <span className="font-semibold text-white">{derived.status}</span>
+                  </div>
+                  <div className="mt-3 h-2 rounded-full bg-gray-800 overflow-hidden">
+                    <div
+                      className={`h-full ${
+                        derived.fillLevel >= 90 ? "bg-red-500" : derived.fillLevel >= 60 ? "bg-yellow-400" : "bg-emerald-500"
+                      }`}
+                      style={{ width: `${derived.fillLevel}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">{derived.fillLevel}% full</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl bg-gray-950/70 p-3 text-xs">
+                    <p className="text-gray-400">Dry</p>
+                    <p className="mt-1 font-semibold text-white">{derived.dryFill}%</p>
+                    <p className="text-gray-500">{derived.dryDistanceCm} cm</p>
+                  </div>
+                  <div className="rounded-2xl bg-gray-950/70 p-3 text-xs">
+                    <p className="text-gray-400">Wet</p>
+                    <p className="mt-1 font-semibold text-white">{derived.wetFill}%</p>
+                    <p className="text-gray-500">{derived.wetDistanceCm} cm</p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Last reading {formatRelative(derived.receivedAt, now)}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-gray-400">Waiting for first telemetry from the IoT node…</p>
+            )}
+          </div>
+
           <div className="rounded-3xl border border-gray-800 bg-gray-900/80 p-6">
             <div className="flex items-center gap-3 text-white">
               <AlertTriangle className="w-5 h-5 text-yellow-400" />
@@ -162,7 +265,7 @@ export default function BinStatus() {
               <Lock className="w-5 h-5 text-cyan-400" />
               <div>
                 <p className="text-sm uppercase tracking-[0.24em] text-gray-400">Connectivity</p>
-                <p className="mt-2 text-xl font-semibold text-white">{binData.filter((item) => item.networkStrength >= 90).length} bins strong</p>
+                <p className="mt-2 text-xl font-semibold text-white">{mergedData.filter((item) => item.networkStrength >= 90).length} bins strong</p>
               </div>
             </div>
             <div className="mt-4 rounded-2xl bg-gray-950/70 p-4 text-sm text-gray-300">

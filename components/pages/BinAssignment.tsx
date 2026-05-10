@@ -4,17 +4,18 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   ArrowLeft,
-  CheckCircle2,
-  Truck,
   MapPin,
   ShieldCheck,
   Camera,
   Layers,
   AlertCircle,
+  Radio,
   X,
 } from "lucide-react";
 import Map from "@/components/ui/Map";
+import BinQrCard from "@/components/ui/BinQrCard";
 import { binData, getStatusColor } from "./data/binStatusData";
+import { formatRelative, useLiveBin } from "@/lib/binLive";
 
 interface BinAssignmentProps {
   binId: string;
@@ -26,10 +27,31 @@ type VerificationType = "camera" | "citizen" | null;
 
 export default function BinAssignment({ binId }: BinAssignmentProps) {
   const normalizedId = decodeURIComponent(binId).toUpperCase();
-  const bin = useMemo(
+  const staticBin = useMemo(
     () => binData.find((item) => item.id.toUpperCase() === normalizedId),
     [normalizedId]
   );
+
+  const { derived, now } = useLiveBin(normalizedId);
+
+  const bin = useMemo(() => {
+    if (!staticBin) return undefined;
+    if (!staticBin.isLive || !derived) return staticBin;
+    return {
+      ...staticBin,
+      status: derived.status,
+      fillLevel: derived.fillLevel,
+      lastVerified: formatRelative(derived.receivedAt, now),
+      condition: derived.online
+        ? derived.fillLevel >= 90
+          ? "Critical"
+          : derived.fillLevel >= 60
+          ? "Attention"
+          : "Healthy"
+        : "Attention",
+      networkStrength: derived.online ? Math.max(staticBin.networkStrength, 92) : 0,
+    } as typeof staticBin;
+  }, [staticBin, derived, now]);
 
   const [selectedTruckId, setSelectedTruckId] = useState("");
   const [assignedTruck, setAssignedTruck] = useState(bin?.truck === "Unassigned" ? "" : bin?.truck ?? "");
@@ -114,7 +136,21 @@ export default function BinAssignment({ binId }: BinAssignmentProps) {
           <div className="rounded-3xl border border-gray-800 bg-gray-900/80 p-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm uppercase tracking-[0.24em] text-cyan-300">Bin dashboard</p>
+                <div className="flex items-center gap-3">
+                  <p className="text-sm uppercase tracking-[0.24em] text-cyan-300">Bin dashboard</p>
+                  {bin.isLive && (
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                        derived?.online
+                          ? "bg-emerald-500/15 text-emerald-300"
+                          : "bg-yellow-500/15 text-yellow-300"
+                      }`}
+                    >
+                      <Radio className="w-3 h-3" />
+                      {derived?.online ? "Live" : derived ? "Stale" : "Connecting…"}
+                    </span>
+                  )}
+                </div>
                 <h1 className="mt-2 text-3xl font-bold text-white">{bin.id}</h1>
                 <p className="mt-2 text-gray-400 max-w-2xl">{bin.address}</p>
               </div>
@@ -151,6 +187,48 @@ export default function BinAssignment({ binId }: BinAssignmentProps) {
         </div>
 
         <aside className="grid gap-6 xl:w-[360px]">
+          {bin.isLive && (
+            <div className="rounded-3xl border border-cyan-500/30 bg-gradient-to-br from-cyan-500/10 to-gray-900/80 p-6">
+              <div className="flex items-center gap-3 text-white">
+                <Radio
+                  className={`w-5 h-5 ${
+                    derived?.online ? "text-emerald-300" : "text-yellow-300"
+                  }`}
+                />
+                <div>
+                  <p className="text-sm uppercase tracking-[0.24em] text-gray-400">Live chambers</p>
+                  <p className="mt-2 text-xl font-semibold">
+                    {derived ? `${derived.fillLevel}% full` : "Connecting…"}
+                  </p>
+                </div>
+              </div>
+              {derived ? (
+                <div className="mt-5 space-y-4">
+                  <ChamberRow
+                    label="Dry"
+                    fill={derived.dryFill}
+                    distanceCm={derived.dryDistanceCm}
+                    flagFull={derived.dryFlagFull}
+                  />
+                  <ChamberRow
+                    label="Wet"
+                    fill={derived.wetFill}
+                    distanceCm={derived.wetDistanceCm}
+                    flagFull={derived.wetFlagFull}
+                  />
+                  <p className="text-xs text-gray-500">
+                    Last reading {formatRelative(derived.receivedAt, now)} · device uptime{" "}
+                    {derived.deviceTs.toLocaleString()} ms
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-gray-400">
+                  Waiting for telemetry from <code className="text-cyan-300">/api/v1/bin/ingest</code>.
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="rounded-3xl border border-gray-800 bg-gray-900/80 p-6">
             <div className="flex items-center gap-3 text-white">
               <ShieldCheck className="w-5 h-5 text-cyan-400" />
@@ -194,6 +272,8 @@ export default function BinAssignment({ binId }: BinAssignmentProps) {
               </div>
             </div>
           </div>
+
+          <BinQrCard binId={bin.id} />
         </aside>
       </div>
 
@@ -291,8 +371,8 @@ export default function BinAssignment({ binId }: BinAssignmentProps) {
               </div>
             </div>
             <p className="mt-4 text-gray-400">This map overlay shows the bin cluster near the selected location.</p>
-            <div className="mt-6 overflow-hidden rounded-3xl border border-gray-800">
-              <Map />
+            <div className="mt-6">
+              <Map height={320} focusBinId={bin.id} />
             </div>
           </div>
 
@@ -313,7 +393,7 @@ export default function BinAssignment({ binId }: BinAssignmentProps) {
       </div>
 
       {selectedImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/70 p-4">
           <div className="relative w-full max-w-6xl overflow-hidden rounded-3xl border border-gray-800 bg-gray-950 shadow-2xl">
             <button
               onClick={() => setSelectedImage(null)}
@@ -384,6 +464,48 @@ export default function BinAssignment({ binId }: BinAssignmentProps) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ChamberRow({
+  label,
+  fill,
+  distanceCm,
+  flagFull,
+}: {
+  label: string;
+  fill: number;
+  distanceCm: number;
+  flagFull: boolean;
+}) {
+  const barColor = flagFull
+    ? "bg-red-500"
+    : fill >= 70
+    ? "bg-yellow-400"
+    : "bg-emerald-500";
+  return (
+    <div>
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-gray-400 uppercase tracking-[0.18em]">{label}</span>
+        <span
+          className={`text-xs font-semibold uppercase ${
+            flagFull ? "text-red-300" : "text-emerald-300"
+          }`}
+        >
+          {flagFull ? "Full" : "OK"}
+        </span>
+      </div>
+      <div className="mt-2 h-2 rounded-full bg-gray-950 overflow-hidden">
+        <div
+          className={`h-full transition-all duration-500 ${barColor}`}
+          style={{ width: `${fill}%` }}
+        />
+      </div>
+      <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+        <span>{distanceCm} cm</span>
+        <span>{fill}%</span>
+      </div>
     </div>
   );
 }

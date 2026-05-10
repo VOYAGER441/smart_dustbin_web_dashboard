@@ -28,22 +28,24 @@ export interface BinData {
     citizen: "Pending" | "Verified" | "Action needed";
   };
   reports: CitizenReport[];
+  isLive?: boolean;
 }
 
 export const binData: BinData[] = [
   {
     id: "BIN-001",
-    address: "2464 Royal Ln. Mesa, New Jersey 45463",
+    address: "Green Park Metro, Aurobindo Marg, New Delhi",
     status: "Filled",
     weight: "12.4 ton",
     truck: "Unassigned",
-    coordinates: { lat: 40.35, lng: -105.27 },
+    coordinates: { lat: 28.5562, lng: 77.2010 },
     battery: 76,
     fillLevel: 98,
     temperature: 29,
     networkStrength: 84,
     lastVerified: "2m ago",
     condition: "Attention",
+    isLive: true,
     imageStatus: { camera: "Pending", citizen: "Pending" },
     reports: [
       {
@@ -66,11 +68,11 @@ export const binData: BinData[] = [
   },
   {
     id: "BIN-002",
-    address: "3891 Ranchview Dr. Richardson, California 6...",
+    address: "Hauz Khas Village, Outer Ring Rd, New Delhi",
     status: "Filled",
     weight: "TBD",
-    truck: "RES-12 • TAX-1234",
-    coordinates: { lat: 32.97, lng: -96.72 },
+    truck: "TRK-101 • Aman Sharma",
+    coordinates: { lat: 28.5535, lng: 77.1942 },
     battery: 62,
     fillLevel: 93,
     temperature: 27,
@@ -91,11 +93,11 @@ export const binData: BinData[] = [
   },
   {
     id: "BIN-003",
-    address: "2972 Westheimer Rd. Santa Ana, Illinois 854...",
+    address: "River Front, Yamuna Bank, New Delhi",
     status: "Filled",
     weight: "12.2 ton",
-    truck: "Unassigned",
-    coordinates: { lat: 34.42, lng: -83.94 },
+    truck: "TRK-303 • Karan Singh",
+    coordinates: { lat: 28.6045, lng: 77.2381 },
     battery: 83,
     fillLevel: 95,
     temperature: 30,
@@ -116,11 +118,11 @@ export const binData: BinData[] = [
   },
   {
     id: "BIN-004",
-    address: "3891 Ranchview Dr. Richardson, California 6...",
+    address: "AIIMS Gate 2, Sri Aurobindo Marg, New Delhi",
     status: "Almost filled",
     weight: "12 ton",
-    truck: "RES-62 • VDS-1345",
-    coordinates: { lat: 32.98, lng: -96.72 },
+    truck: "TRK-202 • Priya Mehta",
+    coordinates: { lat: 28.5672, lng: 77.2100 },
     battery: 88,
     fillLevel: 76,
     temperature: 24,
@@ -141,11 +143,11 @@ export const binData: BinData[] = [
   },
   {
     id: "BIN-005",
-    address: "1901 Thornridge Cir. Shiloh, Hawaii 81063",
+    address: "Market Square, IIT Delhi Campus, New Delhi",
     status: "Almost filled",
     weight: "12 ton",
-    truck: "RES-91 • KKQ-5432",
-    coordinates: { lat: 21.36, lng: -157.93 },
+    truck: "Unassigned",
+    coordinates: { lat: 28.5450, lng: 77.1928 },
     battery: 91,
     fillLevel: 74,
     temperature: 25,
@@ -166,11 +168,11 @@ export const binData: BinData[] = [
   },
   {
     id: "BIN-006",
-    address: "3517 W. Gray St. Utica, Pennsylvania 57867",
+    address: "Safdarjung Enclave, Africa Avenue, New Delhi",
     status: "Emptied",
     weight: "12 ton",
-    truck: "RES-32 • TAX-3455",
-    coordinates: { lat: 43.10, lng: -75.23 },
+    truck: "TRK-101 • Aman Sharma",
+    coordinates: { lat: 28.5703, lng: 77.1925 },
     battery: 95,
     fillLevel: 12,
     temperature: 22,
