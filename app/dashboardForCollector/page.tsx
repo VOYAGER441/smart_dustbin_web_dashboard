@@ -2,116 +2,126 @@
 
 import { ChangeEvent, useMemo, useState } from "react";
 import Image from "next/image";
-import { Camera, CheckCircle2, Coins, MapPinned, Route, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, Camera, CheckCircle2, Coins, MapPinned, Radio, Route, Trash2 } from "lucide-react";
+import { binData, type BinData } from "@/components/pages/data/binStatusData";
+import { LIVE_BIN_ID, deriveLiveBin, formatRelative, useLiveBin } from "@/lib/binLive";
 
 type TaskStatus = "pending" | "assigned" | "in-progress" | "completed";
 
 interface DustbinTask {
-  id: string;
-  dustbinCode: string;
-  zone: string;
-  address: string;
-  reward: number;
+  binId: string;
   status: TaskStatus;
+  reward: number;
   proofPhoto?: string;
+  completedAt?: string;
 }
 
-const initialTasks: DustbinTask[] = [
-  {
-    id: "task-001",
-    dustbinCode: "BIN-1042",
-    zone: "Green Park",
-    address: "Green Park Main Gate, New Delhi",
-    reward: 20,
-    status: "pending",
-  },
-  {
-    id: "task-002",
-    dustbinCode: "BIN-2208",
-    zone: "River Front",
-    address: "River Front Signal Junction, Ahmedabad",
-    reward: 25,
-    status: "pending",
-  },
-  {
-    id: "task-003",
-    dustbinCode: "BIN-3315",
-    zone: "Market Square",
-    address: "Market Square Bus Stop, Pune",
-    reward: 18,
-    status: "pending",
-  },
-];
+const REWARD_BY_STATUS: Record<BinData["status"], number> = {
+  Filled: 30,
+  "Almost filled": 20,
+  Emptied: 10,
+};
+
+function buildInitialTasks(): DustbinTask[] {
+  return binData
+    .filter((bin) => bin.status !== "Emptied")
+    .map((bin) => ({
+      binId: bin.id,
+      status: "pending" as TaskStatus,
+      reward: REWARD_BY_STATUS[bin.status],
+    }));
+}
 
 export default function CollectorDashboardPage() {
-  const [tasks, setTasks] = useState<DustbinTask[]>(initialTasks);
-  const [selectedTaskId, setSelectedTaskId] = useState("");
-  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [tasks, setTasks] = useState<DustbinTask[]>(() => buildInitialTasks());
+  const [selectedBinId, setSelectedBinId] = useState("");
+  const [activeBinId, setActiveBinId] = useState<string | null>(null);
   const [greenCoins, setGreenCoins] = useState(0);
   const [proofPhoto, setProofPhoto] = useState<string | null>(null);
   const [proofFileName, setProofFileName] = useState("");
 
-  const pendingTasks = useMemo(() => tasks.filter((task) => task.status === "pending"), [tasks]);
-  const completedTasks = useMemo(() => tasks.filter((task) => task.status === "completed"), [tasks]);
-  const activeTask = useMemo(
-    () => tasks.find((task) => task.id === activeTaskId) ?? null,
-    [tasks, activeTaskId]
+  const { telemetry, derived, now } = useLiveBin(LIVE_BIN_ID);
+
+  const binsById = useMemo(() => {
+    const map: Record<string, BinData> = {};
+    for (const b of binData) map[b.id] = b;
+    return map;
+  }, []);
+
+  const effectiveTasks = useMemo(() => {
+    if (!derived || activeBinId !== LIVE_BIN_ID || !derived.isFull) return tasks;
+    return tasks.map((task) =>
+      task.binId === LIVE_BIN_ID && task.status === "assigned"
+        ? { ...task, status: "in-progress" as const }
+        : task
+    );
+  }, [tasks, derived, activeBinId]);
+
+  const tasksWithBin = useMemo(
+    () =>
+      effectiveTasks.map((task) => {
+        const bin = binsById[task.binId];
+        if (bin?.isLive && telemetry) {
+          const live = deriveLiveBin(telemetry, now);
+          return { task, bin, liveStatus: live };
+        }
+        return { task, bin, liveStatus: null };
+      }),
+    [effectiveTasks, binsById, telemetry, now]
   );
-  const hasActiveTask = Boolean(activeTask);
+
+  const pendingTasks = tasksWithBin.filter((t) => t.task.status === "pending");
+  const completedTasks = tasksWithBin.filter((t) => t.task.status === "completed");
+  const activeEntry = tasksWithBin.find((t) => t.task.binId === activeBinId) ?? null;
+  const hasActive = Boolean(activeEntry);
 
   const assignDustbin = () => {
-    if (!selectedTaskId || hasActiveTask) return;
-
+    if (!selectedBinId || hasActive) return;
     setTasks((prev) =>
-      prev.map((task) =>
-        task.id === selectedTaskId ? { ...task, status: "assigned" } : task
-      )
+      prev.map((t) => (t.binId === selectedBinId ? { ...t, status: "assigned" } : t))
     );
-    setActiveTaskId(selectedTaskId);
-    setSelectedTaskId("");
+    setActiveBinId(selectedBinId);
+    setSelectedBinId("");
   };
 
   const openDirections = () => {
-    if (!activeTask) return;
-    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activeTask.address)}`;
-    window.open(mapUrl, "_blank", "noopener,noreferrer");
+    if (!activeEntry?.bin) return;
+    const { lat, lng } = activeEntry.bin.coordinates;
+    const url = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=18/${lat}/${lng}`;
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const markInProgress = () => {
-    if (!activeTask || activeTask.status !== "assigned") return;
+    if (!activeEntry || activeEntry.task.status !== "assigned") return;
     setTasks((prev) =>
-      prev.map((task) =>
-        task.id === activeTask.id ? { ...task, status: "in-progress" } : task
-      )
+      prev.map((t) => (t.binId === activeEntry.task.binId ? { ...t, status: "in-progress" } : t))
     );
   };
 
   const handleProofUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = () => {
-      if (typeof reader.result === "string") {
-        setProofPhoto(reader.result);
-      }
+      if (typeof reader.result === "string") setProofPhoto(reader.result);
     };
     reader.readAsDataURL(file);
     setProofFileName(file.name);
   };
 
   const submitProofAndComplete = () => {
-    if (!activeTask || activeTask.status !== "in-progress" || !proofPhoto) return;
-
+    if (!activeEntry || activeEntry.task.status !== "in-progress" || !proofPhoto) return;
+    const completedAt = new Date().toLocaleString();
     setTasks((prev) =>
-      prev.map((task) =>
-        task.id === activeTask.id
-          ? { ...task, status: "completed", proofPhoto }
-          : task
+      prev.map((t) =>
+        t.binId === activeEntry.task.binId
+          ? { ...t, status: "completed", proofPhoto, completedAt }
+          : t
       )
     );
-    setGreenCoins((prev) => prev + activeTask.reward);
-    setActiveTaskId(null);
+    setGreenCoins((prev) => prev + activeEntry.task.reward);
+    setActiveBinId(null);
     setProofPhoto(null);
     setProofFileName("");
   };
@@ -121,9 +131,15 @@ export default function CollectorDashboardPage() {
       <header className="rounded-2xl border border-gray-800 bg-gray-900/90 p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white">Collector Dashboard</h1>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-cyan-300 transition"
+            >
+              <ArrowLeft className="h-3 w-3" /> Back to landing
+            </Link>
+            <h1 className="mt-2 text-3xl font-bold text-white">Collector dashboard</h1>
             <p className="mt-2 text-gray-400">
-              Assign a dustbin, navigate to its location, clean it, and upload a photo to earn Green Coins.
+              Pick up an open dustbin task, navigate via the map, clean it, and upload a photo to earn Green Coins.
             </p>
           </div>
           <div className="inline-flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-3">
@@ -134,52 +150,92 @@ export default function CollectorDashboardPage() {
             </div>
           </div>
         </div>
+
+        {derived && (
+          <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 text-xs text-cyan-200">
+            <Radio
+              className={`h-3 w-3 ${derived.online ? "text-emerald-300" : "text-yellow-300"}`}
+            />
+            <span>
+              {LIVE_BIN_ID} is {derived.online ? "live" : "stale"} · {derived.fillLevel}% fill ·{" "}
+              last reading {formatRelative(derived.receivedAt, now)}
+            </span>
+          </div>
+        )}
       </header>
 
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-gray-800 bg-gray-900/90 p-6 space-y-4">
-          <h2 className="text-xl font-semibold text-white">Assign Dustbin Task</h2>
-          <p className="text-sm text-gray-400">You can work on one active task at a time.</p>
+          <h2 className="text-xl font-semibold text-white">Open tasks</h2>
+          <p className="text-sm text-gray-400">
+            Higher-priority bins (Filled) reward more Green Coins. You can work on one task at a time.
+          </p>
 
           <select
-            value={selectedTaskId}
-            onChange={(event) => setSelectedTaskId(event.target.value)}
-            disabled={hasActiveTask}
+            value={selectedBinId}
+            onChange={(e) => setSelectedBinId(e.target.value)}
+            disabled={hasActive}
             className="w-full rounded-lg border border-gray-700 bg-gray-950 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <option value="">Select a dustbin to assign</option>
-            {pendingTasks.map((task) => (
-              <option key={task.id} value={task.id}>
-                {task.dustbinCode} • {task.zone} • +{task.reward} GC
-              </option>
-            ))}
+            <option value="">Select a dustbin to claim</option>
+            {pendingTasks.map(({ task, bin }) =>
+              bin ? (
+                <option key={task.binId} value={task.binId}>
+                  {bin.id} · {bin.address.split(",")[0]} · {bin.status} · +{task.reward} GC
+                </option>
+              ) : null
+            )}
           </select>
 
           <button
             onClick={assignDustbin}
-            disabled={!selectedTaskId || hasActiveTask}
+            disabled={!selectedBinId || hasActive}
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Trash2 className="h-4 w-4" />
-            Assign dustbin
+            Claim task
           </button>
+
+          {pendingTasks.length === 0 && (
+            <p className="text-sm text-gray-500">No open tasks right now — great work!</p>
+          )}
         </div>
 
         <div className="rounded-2xl border border-gray-800 bg-gray-900/90 p-6 space-y-4">
-          <h2 className="text-xl font-semibold text-white">Active Task</h2>
+          <h2 className="text-xl font-semibold text-white">Active task</h2>
 
-          {!activeTask ? (
+          {!activeEntry || !activeEntry.bin ? (
             <p className="text-sm text-gray-400">
-              No active task assigned. Choose a pending dustbin to begin.
+              No active task. Choose a pending dustbin to begin.
             </p>
           ) : (
             <div className="space-y-4">
               <div className="rounded-xl border border-gray-700 bg-gray-950 p-4">
-                <p className="text-sm text-gray-400">Dustbin</p>
-                <p className="text-lg font-semibold text-white">{activeTask.dustbinCode}</p>
-                <p className="mt-1 text-sm text-gray-300">{activeTask.zone}</p>
-                <p className="text-sm text-gray-500">{activeTask.address}</p>
-                <p className="mt-2 text-sm text-emerald-300">Reward: +{activeTask.reward} Green Coins</p>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-lg font-semibold text-white">{activeEntry.bin.id}</p>
+                  {activeEntry.liveStatus && (
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                        activeEntry.liveStatus.online
+                          ? "bg-emerald-500/15 text-emerald-300"
+                          : "bg-yellow-500/15 text-yellow-300"
+                      }`}
+                    >
+                      <Radio className="w-3 h-3" />
+                      {activeEntry.liveStatus.online ? "Live" : "Stale"}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-sm text-gray-300">{activeEntry.bin.address}</p>
+                <p className="mt-2 text-sm text-emerald-300">
+                  Reward: +{activeEntry.task.reward} Green Coins
+                </p>
+                {activeEntry.liveStatus && (
+                  <p className="mt-2 text-xs text-gray-400">
+                    Live fill <span className="text-white font-semibold">{activeEntry.liveStatus.fillLevel}%</span> · status{" "}
+                    {activeEntry.liveStatus.status}
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-wrap gap-3">
@@ -188,11 +244,11 @@ export default function CollectorDashboardPage() {
                   className="inline-flex items-center gap-2 rounded-lg border border-cyan-500/50 bg-cyan-500/10 px-4 py-2.5 text-sm font-medium text-cyan-300 hover:bg-cyan-500/20"
                 >
                   <MapPinned className="h-4 w-4" />
-                  Open location
+                  Open in OpenStreetMap
                 </button>
                 <button
                   onClick={markInProgress}
-                  disabled={activeTask.status !== "assigned"}
+                  disabled={activeEntry.task.status !== "assigned"}
                   className="inline-flex items-center gap-2 rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-4 py-2.5 text-sm font-medium text-indigo-300 hover:bg-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Route className="h-4 w-4" />
@@ -232,11 +288,11 @@ export default function CollectorDashboardPage() {
 
               <button
                 onClick={submitProofAndComplete}
-                disabled={activeTask.status !== "in-progress" || !proofPhoto}
+                disabled={activeEntry.task.status !== "in-progress" || !proofPhoto}
                 className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <CheckCircle2 className="h-4 w-4" />
-                Submit proof & earn coins
+                Submit proof &amp; earn coins
               </button>
             </div>
           )}
@@ -244,30 +300,33 @@ export default function CollectorDashboardPage() {
       </section>
 
       <section className="rounded-2xl border border-gray-800 bg-gray-900/90 p-6">
-        <h2 className="text-xl font-semibold text-white">Completed Cleanups</h2>
+        <h2 className="text-xl font-semibold text-white">Completed cleanups</h2>
         {completedTasks.length === 0 ? (
           <p className="mt-3 text-sm text-gray-400">No completed tasks yet.</p>
         ) : (
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {completedTasks.map((task) => (
-              <div key={task.id} className="rounded-xl border border-gray-700 bg-gray-950 p-4 space-y-3">
+            {completedTasks.map(({ task, bin }) => (
+              <div key={task.binId} className="rounded-xl border border-gray-700 bg-gray-950 p-4 space-y-3">
                 <div>
-                  <p className="text-sm font-semibold text-white">{task.dustbinCode}</p>
-                  <p className="text-xs text-gray-400">{task.zone}</p>
+                  <p className="text-sm font-semibold text-white">{bin?.id}</p>
+                  <p className="text-xs text-gray-400">{bin?.address}</p>
                   <p className="text-xs text-emerald-300">+{task.reward} Green Coins</p>
+                  {task.completedAt && (
+                    <p className="text-[11px] text-gray-500">at {task.completedAt}</p>
+                  )}
                 </div>
-                {task.proofPhoto ? (
+                {task.proofPhoto && (
                   <div className="relative h-28 w-full overflow-hidden rounded-md">
                     <Image
                       src={task.proofPhoto}
-                      alt={`${task.dustbinCode} cleanup proof`}
+                      alt={`${bin?.id} cleanup proof`}
                       fill
                       unoptimized
                       sizes="(max-width: 1024px) 100vw, 33vw"
                       className="object-cover"
                     />
                   </div>
-                ) : null}
+                )}
               </div>
             ))}
           </div>

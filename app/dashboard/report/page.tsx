@@ -1,10 +1,5 @@
-import DashboardPlaceholder from "@/components/pages/DashboardPlaceholder";
+import ReportVerify from "@/components/pages/ReportVerify";
 
 export default function ReportPage() {
-  return (
-    <DashboardPlaceholder
-      title="Report"
-      description="Generate operational summaries and export collection performance reports."
-    />
-  );
+  return <ReportVerify />;
 }
