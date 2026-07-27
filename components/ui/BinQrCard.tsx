@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Check, Copy, Printer, QrCode } from "lucide-react";
 
 interface BinQrCardProps {
@@ -8,13 +8,13 @@ interface BinQrCardProps {
 }
 
 export default function BinQrCard({ binId }: BinQrCardProps) {
-  const [origin, setOrigin] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    setOrigin(window.location.origin);
-  }, []);
-
+  const origin = useSyncExternalStore(
+    () => () => {},
+    () => window.location.origin,
+    () => ""
+  );
+  const actionsReady = Boolean(origin);
   const reportUrl = origin ? `${origin}/report/${encodeURIComponent(binId)}` : "";
   const qrSrc = reportUrl
     ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=12&data=${encodeURIComponent(reportUrl)}`
@@ -97,8 +97,10 @@ export default function BinQrCard({ binId }: BinQrCardProps) {
           <button
             type="button"
             onClick={copyUrl}
-            disabled={!reportUrl}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-700 px-4 py-2 text-sm text-gray-200 hover:bg-gray-800 disabled:opacity-50"
+            aria-disabled={!actionsReady}
+            className={`inline-flex items-center justify-center gap-2 rounded-full border border-gray-700 px-4 py-2 text-sm text-gray-200 ${
+              actionsReady ? "hover:bg-gray-800" : "cursor-not-allowed opacity-50"
+            }`}
           >
             {copied ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
             {copied ? "Copied" : "Copy URL"}
@@ -106,8 +108,10 @@ export default function BinQrCard({ binId }: BinQrCardProps) {
           <button
             type="button"
             onClick={printQr}
-            disabled={!reportUrl}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-cyan-500/50 bg-cyan-500/10 px-4 py-2 text-sm text-cyan-200 hover:bg-cyan-500/20 disabled:opacity-50"
+            aria-disabled={!actionsReady}
+            className={`inline-flex items-center justify-center gap-2 rounded-full border border-cyan-500/50 bg-cyan-500/10 px-4 py-2 text-sm text-cyan-200 ${
+              actionsReady ? "hover:bg-cyan-500/20" : "cursor-not-allowed opacity-50"
+            }`}
           >
             <Printer className="w-4 h-4" />
             Print sticker

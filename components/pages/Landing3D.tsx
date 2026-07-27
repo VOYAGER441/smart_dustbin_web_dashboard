@@ -2,9 +2,8 @@
 
 import { useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 import { GlassCard } from '../ui/GlassCard';
-import { Zap, Leaf, BarChart3, ArrowRight, ShieldCheck, Route, CheckCircle2, MapPin, Server } from 'lucide-react';
+import { Zap, Leaf, BarChart3, ArrowRight, ShieldCheck, CheckCircle2, MapPin, Server } from 'lucide-react';
 import { Boxes } from '@/components/ui/background-boxes';
 
 interface Landing3DProps {
@@ -159,7 +158,7 @@ export const Landing3D: React.FC<Landing3DProps> = ({ onNavigate }) => {
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {featureCards.map((feature, idx) => (
+            {featureCards.map((feature) => (
               <GlassCard key={feature.title} blur="lg" opacity="low" className="p-8">
                 <div className="mb-5 inline-flex h-14 w-14 items-center justify-center rounded-3xl bg-cyan-500/10 text-cyan-300">
                   <feature.icon className="h-6 w-6" />

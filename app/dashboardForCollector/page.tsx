@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Camera, CheckCircle2, Coins, MapPinned, Radio, Route, Trash2 } from "lucide-react";
@@ -49,9 +49,18 @@ export default function CollectorDashboardPage() {
     return map;
   }, []);
 
+  const effectiveTasks = useMemo(() => {
+    if (!derived || activeBinId !== LIVE_BIN_ID || !derived.isFull) return tasks;
+    return tasks.map((task) =>
+      task.binId === LIVE_BIN_ID && task.status === "assigned"
+        ? { ...task, status: "in-progress" as const }
+        : task
+    );
+  }, [tasks, derived, activeBinId]);
+
   const tasksWithBin = useMemo(
     () =>
-      tasks.map((task) => {
+      effectiveTasks.map((task) => {
         const bin = binsById[task.binId];
         if (bin?.isLive && telemetry) {
           const live = deriveLiveBin(telemetry, now);
@@ -59,23 +68,8 @@ export default function CollectorDashboardPage() {
         }
         return { task, bin, liveStatus: null };
       }),
-    [tasks, binsById, telemetry, now]
+    [effectiveTasks, binsById, telemetry, now]
   );
-
-  // Auto-promote BIN-001 to in-progress when telemetry shows it's full and the
-  // collector has it assigned — gives the demo a satisfying "live" handoff.
-  useEffect(() => {
-    if (!derived) return;
-    if (activeBinId !== LIVE_BIN_ID) return;
-    if (!derived.isFull) return;
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.binId === LIVE_BIN_ID && t.status === "assigned"
-          ? { ...t, status: "in-progress" }
-          : t
-      )
-    );
-  }, [derived, activeBinId]);
 
   const pendingTasks = tasksWithBin.filter((t) => t.task.status === "pending");
   const completedTasks = tasksWithBin.filter((t) => t.task.status === "completed");

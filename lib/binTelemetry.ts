@@ -14,7 +14,6 @@ export interface BinTelemetry {
 const MAX_HISTORY = 200;
 
 declare global {
-  // eslint-disable-next-line no-var
   var __binTelemetryStore: Map<string, BinTelemetry[]> | undefined;
 }
 

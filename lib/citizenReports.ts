@@ -24,9 +24,7 @@ export interface CitizenReportRecord {
 const MAX_REPORTS = 200;
 
 declare global {
-  // eslint-disable-next-line no-var
   var __citizenReports: CitizenReportRecord[] | undefined;
-  // eslint-disable-next-line no-var
   var __citizenReportSeq: number | undefined;
 }
 

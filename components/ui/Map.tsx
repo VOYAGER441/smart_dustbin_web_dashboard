@@ -55,6 +55,7 @@ export default function DustbinMap({ height = 400, focusBinId }: DustbinMapProps
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
     let cancelled = false;
+    const markers = markersRef.current;
 
     (async () => {
       const L = (await import("leaflet")).default;
@@ -85,7 +86,7 @@ export default function DustbinMap({ height = 400, focusBinId }: DustbinMapProps
       const map = mapRef.current as { remove?: () => void } | null;
       if (map?.remove) map.remove();
       mapRef.current = null;
-      markersRef.current.clear();
+      markers.clear();
     };
   }, []);
 
